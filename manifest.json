@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Linger",
+  "version": "1.0",
+  "description": "Harvest your open tabs into a clean, centralized backlog.",
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Harvest Tabs"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
