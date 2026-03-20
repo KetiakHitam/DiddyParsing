@@ -2,18 +2,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listContainer = document.getElementById('list-container');
     const copyTextBtn = document.getElementById('copy-text-btn');
     const copyAllBtn = document.getElementById('copy-all-btn');
+    const searchInput = document.getElementById('search-input');
 
     let items = [];
+    let filteredItems = [];
 
     const render = () => {
         listContainer.innerHTML = '';
-        if (items.length === 0) {
-            listContainer.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding: 40px;">No tabs lingering. You\'re all caught up!</div>';
+        if (filteredItems.length === 0) {
+            listContainer.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding: 40px;">No matching tabs found.</div>';
             return;
         }
 
-        // Render from newest to oldest by appending to list
-        items.slice().reverse().forEach(item => {
+        filteredItems.forEach(item => {
             const div = document.createElement('div');
             div.className = 'item';
             div.tabIndex = 0; // Enables keyboard navigation
@@ -70,22 +71,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.stopPropagation(); // Don't trigger the navigate event
                 items = items.filter(i => i.id !== item.id);
                 await chrome.storage.local.set({ linger_list: items });
-                render();
+                filterList();
             });
 
             listContainer.appendChild(div);
         });
     };
 
+    const filterList = () => {
+        const query = searchInput.value.toLowerCase();
+        filteredItems = items.slice().reverse().filter(i => 
+            i.cleanTitle.toLowerCase().includes(query) || 
+            i.url.toLowerCase().includes(query)
+        );
+        render();
+    };
+
+    searchInput.addEventListener('input', filterList);
+
     // Load initial data from Chrome Storage Map
     const data = await chrome.storage.local.get(['linger_list']);
     items = data.linger_list || [];
-    render();
+    filterList();
 
     // Export Text Only (List Format)
     copyTextBtn.addEventListener('click', () => {
-        if (items.length === 0) return;
-        const text = items.map(i => `- [ ] ${i.cleanTitle}`).join('\n');
+        if (filteredItems.length === 0) return;
+        const text = filteredItems.map(i => `- [ ] ${i.cleanTitle}`).join('\n');
         navigator.clipboard.writeText(text).then(() => {
             const originalText = copyTextBtn.textContent;
             copyTextBtn.textContent = 'Copied!';
@@ -95,8 +107,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Export cleanly to markdown (Text + Link)
     copyAllBtn.addEventListener('click', () => {
-        if (items.length === 0) return;
-        const text = items.map(i => `- [ ] ${i.cleanTitle} (${i.url})`).join('\n');
+        if (filteredItems.length === 0) return;
+        const text = filteredItems.map(i => `- [ ] ${i.cleanTitle} (${i.url})`).join('\n');
         navigator.clipboard.writeText(text).then(() => {
             const originalText = copyAllBtn.textContent;
             copyAllBtn.textContent = 'Copied!';

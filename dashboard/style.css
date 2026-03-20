@@ -26,9 +26,33 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 20px;
+}
+
+.search-container {
     margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #333;
+    display: flex;
+}
+
+#search-input {
+    flex: 1;
+    background: transparent;
+    border: 1px solid #333;
+    color: var(--text-primary);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#search-input::placeholder {
+    color: #555555;
+}
+
+#search-input:focus {
+    border-color: var(--text-secondary);
 }
 
 .header-actions {
