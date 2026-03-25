@@ -169,6 +169,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     toggleMobileBtn.addEventListener('click', () => switchTab('mobile'));
 
     const filterList = () => {
+        const pcCount = items.filter(i => i.device === 'pc' || !i.device).length;
+        const mobileCount = items.filter(i => i.device === 'mobile').length;
+        togglePcBtn.textContent = `🖥️ PC Tabs (${pcCount})`;
+        toggleMobileBtn.textContent = `📱 iPhone Tabs (${mobileCount})`;
+
         const query = searchInput.value.toLowerCase();
         filteredItems = items.filter(i => {
             const matchesDevice = (i.device === activeDevice) || (!i.device && activeDevice === 'pc');
