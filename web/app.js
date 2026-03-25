@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const searchInput = document.getElementById('search-input');
 
     const itemCountSpan = document.getElementById('item-count');
+    const togglePcBtn = document.getElementById('toggle-pc');
+    const toggleMobileBtn = document.getElementById('toggle-mobile');
+    let activeDevice = 'pc';
 
     let items = [];
     let filteredItems = [];
@@ -142,12 +145,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
 
+    const switchTab = (device) => {
+        activeDevice = device;
+        if (device === 'pc') {
+            togglePcBtn.style.background = 'var(--accent)';
+            togglePcBtn.style.color = 'var(--text-primary)';
+            togglePcBtn.style.border = 'none';
+            toggleMobileBtn.style.background = 'transparent';
+            toggleMobileBtn.style.color = 'var(--text-secondary)';
+            toggleMobileBtn.style.border = '1px solid #333';
+        } else {
+            toggleMobileBtn.style.background = 'var(--accent)';
+            toggleMobileBtn.style.color = 'var(--text-primary)';
+            toggleMobileBtn.style.border = 'none';
+            togglePcBtn.style.background = 'transparent';
+            togglePcBtn.style.color = 'var(--text-secondary)';
+            togglePcBtn.style.border = '1px solid #333';
+        }
+        filterList();
+    };
+
+    togglePcBtn.addEventListener('click', () => switchTab('pc'));
+    toggleMobileBtn.addEventListener('click', () => switchTab('mobile'));
+
     const filterList = () => {
         const query = searchInput.value.toLowerCase();
         filteredItems = items.filter(i => {
+            const matchesDevice = (i.device === activeDevice) || (!i.device && activeDevice === 'pc');
             const t = (i.cleantitle || i.title || '').toLowerCase();
             const u = (i.url || '').toLowerCase();
-            return t.includes(query) || u.includes(query);
+            return matchesDevice && (t.includes(query) || u.includes(query));
         });
         if (selectedIndex >= filteredItems.length) {
             selectedIndex = Math.max(0, filteredItems.length - 1);
