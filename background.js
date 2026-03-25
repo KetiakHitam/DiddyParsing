@@ -167,15 +167,19 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
 
 // URL MUTATION TRACKING: Prevent mutated tabs from permanently orphaning in the cloud
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.url) {
-        if (changeInfo.url.startsWith('chrome://') || changeInfo.url.startsWith('edge://')) return;
+    if (changeInfo.url || changeInfo.title) {
+        if (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) return;
 
         const res = await chrome.storage.local.get(['linger_uuid_map']);
         const map = res.linger_uuid_map || {};
         const uuid = map[tabId.toString()];
         
         if (uuid) {
-            console.log(`Tab URL mutated natively! Issuing surgical PATCH for UUID: ${uuid} to ${changeInfo.url}`);
+            const payload = {};
+            if (changeInfo.url) payload.url = changeInfo.url;
+            if (changeInfo.title) payload.cleantitle = changeInfo.title;
+
+            console.log(`Tab mutated natively! Issuing surgical PATCH for UUID: ${uuid}`);
             
             let SUPABASE_URL, SUPABASE_ANON_KEY;
             try {
@@ -193,7 +197,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                     "Content-Type": "application/json",
                     "Prefer": "return=minimal"
                 },
-                body: JSON.stringify({ url: changeInfo.url })
+                body: JSON.stringify(payload)
             });
         }
     }
