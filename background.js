@@ -74,7 +74,13 @@ chrome.action.onClicked.addListener(async () => {
         console.error("Failed to fetch existing tabs", e);
     }
 
-    const newItems = harvested.filter(item => !existingUrls.has(item.payload.url));
+    // Prevent Edge from crashing batch uploads if you have 2 identical tabs open
+    const localSeenUrls = new Set();
+    const newItems = harvested.filter(item => {
+        if (existingUrls.has(item.payload.url) || localSeenUrls.has(item.payload.url)) return false;
+        localSeenUrls.add(item.payload.url);
+        return true;
+    });
     const payloads = newItems.map(item => item.payload);
 
     // Post to Supabase REST API
@@ -156,5 +162,39 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
         // Remove edge case bloat locally
         delete map[tabId.toString()];
         await chrome.storage.local.set({ linger_uuid_map: map });
+    }
+});
+
+// URL MUTATION TRACKING: Prevent mutated tabs from permanently orphaning in the cloud
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (changeInfo.url) {
+        if (changeInfo.url.startsWith('chrome://') || changeInfo.url.startsWith('edge://')) return;
+
+        const res = await chrome.storage.local.get(['linger_uuid_map']);
+        const map = res.linger_uuid_map || {};
+        const uuid = map[tabId.toString()];
+        
+        if (uuid) {
+            console.log(`Tab URL mutated natively! Issuing surgical PATCH for UUID: ${uuid} to ${changeInfo.url}`);
+            
+            let SUPABASE_URL, SUPABASE_ANON_KEY;
+            try {
+                const configRes = await fetch(chrome.runtime.getURL('config.json'));
+                const config = await configRes.json();
+                SUPABASE_URL = config.SUPABASE_URL + "/rest/v1/linger_tabs";
+                SUPABASE_ANON_KEY = config.SUPABASE_ANON_KEY;
+            } catch(e) { return; }
+            
+            await fetch(`${SUPABASE_URL}?id=eq.${uuid}`, {
+                method: "PATCH",
+                headers: {
+                    "apikey": SUPABASE_ANON_KEY,
+                    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal"
+                },
+                body: JSON.stringify({ url: changeInfo.url })
+            });
+        }
     }
 });

@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let items = [];
     let filteredItems = [];
     let selectedIndex = 0;
+    let VISIBLE_LIMIT = 50;
 
     const render = () => {
         listContainer.innerHTML = '';
@@ -54,7 +55,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        filteredItems.forEach((item, index) => {
+        const itemsToRender = filteredItems.slice(0, VISIBLE_LIMIT);
+
+        itemsToRender.forEach((item, index) => {
             const div = document.createElement('div');
             div.className = 'item' + (index === selectedIndex ? ' selected' : '');
             
@@ -124,6 +127,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             listContainer.appendChild(div);
         });
+
+        if (filteredItems.length > VISIBLE_LIMIT) {
+            const loadMoreBtn = document.createElement('button');
+            loadMoreBtn.className = 'load-more-btn';
+            loadMoreBtn.textContent = `Load More (${filteredItems.length - VISIBLE_LIMIT} remaining)`;
+            loadMoreBtn.style.cssText = 'width:100%; padding:15px; margin-top:5px; background:var(--bg-secondary); border:1px solid #333; color:var(--text-primary); border-radius:6px; cursor:pointer; font-weight:500; transition: background 0.2s ease;';
+            loadMoreBtn.onmouseover = () => loadMoreBtn.style.background = '#333';
+            loadMoreBtn.onmouseout = () => loadMoreBtn.style.background = 'var(--bg-secondary)';
+            loadMoreBtn.addEventListener('click', () => {
+                VISIBLE_LIMIT += 50;
+                render();
+            });
+            listContainer.appendChild(loadMoreBtn);
+        }
         
         const selectedEl = listContainer.children[selectedIndex];
         if (selectedEl) {
@@ -169,6 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     toggleMobileBtn.addEventListener('click', () => switchTab('mobile'));
 
     const filterList = () => {
+        VISIBLE_LIMIT = 50; // Reset pagination chunk
         const pcCount = items.filter(i => i.device === 'pc' || !i.device).length;
         const mobileCount = items.filter(i => i.device === 'mobile').length;
         togglePcBtn.textContent = `🖥️ PC Tabs (${pcCount})`;
