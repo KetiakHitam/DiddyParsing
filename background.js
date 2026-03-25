@@ -1,9 +1,26 @@
 chrome.action.onClicked.addListener(async () => {
+    let SUPABASE_URL, SUPABASE_ANON_KEY;
+    try {
+        const res = await fetch(chrome.runtime.getURL('config.json'));
+        const config = await res.json();
+        SUPABASE_URL = config.SUPABASE_URL + "/rest/v1/linger_tabs";
+        SUPABASE_ANON_KEY = config.SUPABASE_ANON_KEY;
+    } catch(e) {
+        console.error("Missing config.json! Harvest aborted.");
+        return;
+    }
+    
+    const HEADERS = {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+    };
+
     // Query all tabs in the current window
     const tabs = await chrome.tabs.query({ currentWindow: true });
   
     const harvested = [];
-    const now = Date.now();
   
     for (const tab of tabs) {
       // Filter out internal browser pages and pinned tabs
@@ -14,50 +31,83 @@ chrome.action.onClicked.addListener(async () => {
       let cleanTitle = tab.title;
       let type = 'website';
   
-      // Parse search queries to extract the typed text
+      // Parse search queries
       try {
           const urlObj = new URL(tab.url);
-          // Handle Google and Bing searches
           if (urlObj.hostname.includes('google.') || urlObj.hostname.includes('bing.')) {
               if (urlObj.pathname === '/search' && urlObj.searchParams.has('q')) {
                   const query = urlObj.searchParams.get('q');
                   if (query) {
-                      cleanTitle = query; // The extracted search term
+                      cleanTitle = query;
                       type = 'search';
                   }
               }
           }
-      } catch (e) {
-          // If URL parsing fails, default back to the raw page title
-      }
+      } catch (e) {}
   
       harvested.push({
-        id: "linger_" + Math.random().toString(36).substr(2, 9),
         type: type,
-        cleanTitle: cleanTitle,
-        url: tab.url,
-        tabId: tab.id, // Store ID to focus tab later
-        timestamp: now
+        cleantitle: cleanTitle,
+        url: tab.url
       });
     }
   
-    // Retrieve the existing backlog to avoid overwriting or duplicating URLs
-    const data = await chrome.storage.local.get(['linger_list']);
-    const existing = data.linger_list || [];
-  
-    const existingUrls = new Set(existing.map(item => item.url));
+    if (harvested.length === 0) return;
+
+    // Fetch existing URLs from Supabase to prevent massive duplicates if clicked multiple times
+    let existingUrls = new Set();
+    try {
+        const getRes = await fetch(`${SUPABASE_URL}?select=url`, {
+            headers: {
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
+        if (getRes.ok) {
+            const data = await getRes.json();
+            data.forEach(item => existingUrls.add(item.url));
+        }
+    } catch(e) {
+        console.error("Failed to fetch existing tabs", e);
+    }
+
     const newItems = harvested.filter(item => !existingUrls.has(item.url));
-    const combined = [...existing, ...newItems]; // Append new items
+
+    // Post to Supabase REST API
+    if (newItems.length > 0) {
+        console.log(`Uploading ${newItems.length} new tabs to Supabase...`);
+        try {
+            const postRes = await fetch(SUPABASE_URL, {
+                method: "POST",
+                headers: HEADERS,
+                body: JSON.stringify(newItems)
+            });
+            if (postRes.ok) {
+                console.log("Upload successful!");
+            } else {
+                const err = await postRes.text();
+                console.error("Supabase POST error:", err);
+            }
+        } catch(e) {
+            console.error("Network error during harvest:", e);
+        }
+    } else {
+        console.log("No new unique tabs to harvest.");
+    }
   
-    await chrome.storage.local.set({ linger_list: combined });
-  
-    // Open or focus the Dashboard
-    const targetUrl = chrome.runtime.getURL("dashboard/index.html");
+    // Open the new Centralized Web Dashboard (Live Cloud Version)
+    const targetUrl = "https://ketiakhitam.github.io/DiddyParsing/web/index.html";
     const dashTabs = await chrome.tabs.query({ url: targetUrl });
     if (dashTabs.length > 0) {
         chrome.tabs.update(dashTabs[0].id, { active: true });
     } else {
         chrome.tabs.create({ url: targetUrl });
     }
-  });
-  
+});
+
+// Remove item from Supabase automatically when the physical tab is closed
+chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+    // Finding the exact URL tied to this tabId is difficult since the tab is already removed, 
+    // unless we maintain a local map. For simplicity in Phase 2, we leave DB items intact upon local closure,
+    // or rely on explicit deletion via the Centralized Web App interface.
+});

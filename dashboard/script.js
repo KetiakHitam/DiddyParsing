@@ -66,9 +66,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (e.key === 'Enter') navigate();
             });
 
-            // Delete item from storage and re-render
+            // Delete item from storage, close tab physically, and re-render
             delBtn.addEventListener('click', async (e) => {
                 e.stopPropagation(); // Don't trigger the navigate event
+                
+                try {
+                    await chrome.tabs.remove(item.tabId);
+                } catch(err) {
+                    // Physical tab was already closed, ignore
+                }
+
                 items = items.filter(i => i.id !== item.id);
                 await chrome.storage.local.set({ linger_list: items });
                 filterList();
@@ -88,6 +95,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     searchInput.addEventListener('input', filterList);
+
+    // Live sync: Listen for tab removals emitted by background.js
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (namespace === 'local' && changes.linger_list) {
+            items = changes.linger_list.newValue || [];
+            filterList();
+        }
+    });
 
     // Load initial data from Chrome Storage Map
     const data = await chrome.storage.local.get(['linger_list']);

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linger Central</title>
+    <!-- We link the main extension CSS so we don't have to duplicate it! -->
+    <link rel="stylesheet" href="../dashboard/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Linger Backlog</h1>
+            <div class="header-actions">
+                <button id="copy-text-btn" title="Copy only text">Copy Text</button>
+                <button id="copy-all-btn" title="Copy text and links">Copy All</button>
+            </div>
+        </header>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Filter backlog..." autocomplete="off">
+        </div>
+        <div class="list-container" id="list-container">
+            <!-- Loading state overridden by app.js -->
+            <div style="color:var(--text-secondary); text-align:center; padding: 40px; font-size: 14px;">Connecting to Supabase Cloud...</div>
+        </div>
+    </div>
+    <!-- type="module" allows us to safely import our gitignored config variables -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
