@@ -145,5 +145,70 @@ button:hover {
 }
 
 .delete-btn:hover {
-    color: #ff4a4a; /* Subtle destructive red */
+    color: #ff4a4a;
+}
+
+/* Clear All - destructive action styling */
+.clear-all-btn {
+    border-color: #333;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.clear-all-btn:hover {
+    background: #3a1010;
+    border-color: #ff4a4a;
+    color: #ff4a4a;
+}
+
+/* Working On toggle button */
+.working-btn {
+    opacity: 0;
+    background: transparent;
+    border: 1px solid #555;
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+    white-space: nowrap;
+    transition: opacity 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.item:hover .working-btn, .item:focus .working-btn {
+    opacity: 1;
+}
+
+.working-btn:hover {
+    background: #2a1a3e;
+    border-color: #9b59b6;
+    color: #c084fc;
+}
+
+/* Active working state - always visible */
+.item.working .working-btn {
+    opacity: 1;
+    background: #2a1a3e;
+    border-color: #9b59b6;
+    color: #c084fc;
+}
+
+/* Purple highlight for items being worked on */
+.item.working {
+    background: rgba(155, 89, 182, 0.1);
+    border-left: 3px solid #9b59b6;
+    padding-left: 13px;
+}
+
+.item.working:hover {
+    background: rgba(155, 89, 182, 0.18);
+}
+
+.working-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #c084fc;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }

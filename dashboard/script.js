@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listContainer = document.getElementById('list-container');
     const copyTextBtn = document.getElementById('copy-text-btn');
     const copyAllBtn = document.getElementById('copy-all-btn');
+    const clearAllBtn = document.getElementById('clear-all-btn');
     const searchInput = document.getElementById('search-input');
 
     let items = [];
@@ -16,39 +17,67 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         filteredItems.forEach(item => {
             const div = document.createElement('div');
-            div.className = 'item';
-            div.tabIndex = 0; // Enables keyboard navigation
+            div.className = 'item' + (item.working ? ' working' : '');
+            div.tabIndex = 0;
             
             const content = document.createElement('div');
             content.className = 'item-content';
             
             const title = document.createElement('span');
             title.className = 'item-title';
-            title.textContent = item.cleanTitle;
-            
-            const url = document.createElement('span');
-            url.className = 'item-url';
-            url.textContent = item.url;
             
             // Subtle icon prefix based on tab type
             const typeIndicator = item.type === 'search' ? '🔍 ' : '🌐 ';
-            title.textContent = typeIndicator + title.textContent;
+            title.textContent = typeIndicator + item.cleanTitle;
 
             content.appendChild(title);
+
+            // Show "WORKING ON" label below title when flagged
+            if (item.working) {
+                const label = document.createElement('span');
+                label.className = 'working-label';
+                label.textContent = 'working on';
+                content.appendChild(label);
+            }
+
+            const url = document.createElement('span');
+            url.className = 'item-url';
+            url.textContent = item.url;
             content.appendChild(url);
 
+            // Action buttons container
+            const actions = document.createElement('div');
+            actions.style.display = 'flex';
+            actions.style.alignItems = 'center';
+
+            // Working On toggle button
+            const workBtn = document.createElement('button');
+            workBtn.className = 'working-btn';
+            workBtn.textContent = item.working ? 'Unflag' : 'Flag';
+            workBtn.title = item.working ? 'Remove working status' : 'Mark as currently working on';
+
+            workBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                item.working = !item.working;
+                await chrome.storage.local.set({ linger_list: items });
+                filterList();
+            });
+
+            // Delete button
             const delBtn = document.createElement('button');
             delBtn.className = 'delete-btn';
             delBtn.innerHTML = '✕';
             delBtn.title = 'Remove from backlog';
-            
+
+            actions.appendChild(workBtn);
+            actions.appendChild(delBtn);
+
             div.appendChild(content);
-            div.appendChild(delBtn);
+            div.appendChild(actions);
 
             // Navigate Logic: Smart Tab Focus
             const navigate = async () => {
                 try {
-                    // Try to finding the existing tab
                     const tab = await chrome.tabs.get(item.tabId);
                     if (tab && tab.windowId) {
                         await chrome.tabs.update(tab.id, { active: true });
@@ -56,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return;
                     }
                 } catch(e) {
-                    // Tab was closed, catch the error and open a fresh one
+                    // Tab was closed, open a fresh one
                 }
                 chrome.tabs.create({ url: item.url });
             };
@@ -68,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Delete item from storage, close tab physically, and re-render
             delBtn.addEventListener('click', async (e) => {
-                e.stopPropagation(); // Don't trigger the navigate event
+                e.stopPropagation();
                 
                 try {
                     await chrome.tabs.remove(item.tabId);
@@ -108,6 +137,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const data = await chrome.storage.local.get(['linger_list']);
     items = data.linger_list || [];
     filterList();
+
+    // Clear All: Wipe the entire backlog from local storage
+    clearAllBtn.addEventListener('click', async () => {
+        if (items.length === 0) return;
+        
+        const confirmed = confirm(`This will remove all ${items.length} tabs from your backlog. Physical browser tabs will NOT be closed. Continue?`);
+        if (!confirmed) return;
+
+        items = [];
+        await chrome.storage.local.set({ linger_list: items });
+        filterList();
+    });
 
     // Export Text Only (List Format)
     copyTextBtn.addEventListener('click', () => {

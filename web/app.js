@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (!SUPABASE_URL) {
-        document.getElementById('list-container').innerHTML = '<div style="color:#ff4a4a; text-align:center; padding: 40px; font-size: 13px;">API Keys missing. Refreshto try again.</div>';
+        document.getElementById('list-container').innerHTML = '<div style="color:#ff4a4a; text-align:center; padding: 40px; font-size: 13px;">API Keys missing. Refresh to try again.</div>';
         return;
     }
 
@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listContainer = document.getElementById('list-container');
     const copyTextBtn = document.getElementById('copy-text-btn');
     const copyAllBtn = document.getElementById('copy-all-btn');
+    const clearAllBtn = document.getElementById('clear-all-btn');
     const searchInput = document.getElementById('search-input');
 
     const itemCountSpan = document.getElementById('item-count');
@@ -59,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         itemsToRender.forEach((item, index) => {
             const div = document.createElement('div');
-            div.className = 'item' + (index === selectedIndex ? ' selected' : '');
+            div.className = 'item' + (index === selectedIndex ? ' selected' : '') + (item.working ? ' working' : '');
             
             const content = document.createElement('div');
             content.className = 'item-content';
@@ -70,9 +71,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const title = document.createElement('span');
             title.className = 'item-title';
-            // Accommodate SQL cleanup
             title.textContent = item.cleantitle || item.title; 
-            
+
+            content.appendChild(icon);
+            content.appendChild(title);
+
+            // Show "WORKING ON" label when flagged
+            if (item.working) {
+                const label = document.createElement('span');
+                label.className = 'working-label';
+                label.textContent = 'working on';
+                content.appendChild(label);
+            }
+
             const urlEl = document.createElement('span');
             urlEl.className = 'item-url';
             try {
@@ -80,28 +91,56 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch {
                 urlEl.textContent = item.url;
             }
-
-            content.appendChild(icon);
-            content.appendChild(title);
             content.appendChild(urlEl);
+
+            // Action buttons container
+            const actions = document.createElement('div');
+            actions.style.display = 'flex';
+            actions.style.alignItems = 'center';
+
+            // Working On toggle button
+            const workBtn = document.createElement('button');
+            workBtn.className = 'working-btn';
+            workBtn.textContent = item.working ? 'Unflag' : 'Flag';
+            workBtn.title = item.working ? 'Remove working status' : 'Mark as currently working on';
+
+            workBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const newState = !item.working;
+                
+                // Optimistic UI update
+                item.working = newState;
+                render();
+
+                // Persist to Supabase
+                await fetch(`${TABLE_URL}?id=eq.${item.id}`, {
+                    method: "PATCH",
+                    headers: { ...HEADERS, "Prefer": "return=minimal" },
+                    body: JSON.stringify({ working: newState })
+                });
+            });
 
             const delBtn = document.createElement('button');
             delBtn.className = 'delete-btn';
             delBtn.innerHTML = '✕';
             delBtn.title = 'Permanently delete from database';
+
+            actions.appendChild(workBtn);
+            actions.appendChild(delBtn);
             
             div.appendChild(content);
-            div.appendChild(delBtn);
+            div.appendChild(actions);
 
             const delAction = async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Optimistic UI updates
+                // Optimistic UI update
                 items = items.filter(i => i.id !== item.id);
                 filterList();
                 
-                // Execute deletion in Supabase via REST
+                // Execute deletion in Supabase
                 await fetch(`${TABLE_URL}?id=eq.${item.id}`, {
                     method: "DELETE",
                     headers: HEADERS
@@ -186,11 +225,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     toggleMobileBtn.addEventListener('click', () => switchTab('mobile'));
 
     const filterList = () => {
-        VISIBLE_LIMIT = 50; // Reset pagination chunk
+        VISIBLE_LIMIT = 50;
         const pcCount = items.filter(i => i.device === 'pc' || !i.device).length;
         const mobileCount = items.filter(i => i.device === 'mobile').length;
-        togglePcBtn.textContent = `🖥️ PC Tabs (${pcCount})`;
-        toggleMobileBtn.textContent = `📱 iPhone Tabs (${mobileCount})`;
+        togglePcBtn.textContent = `PC Tabs (${pcCount})`;
+        toggleMobileBtn.textContent = `iPhone Tabs (${mobileCount})`;
 
         const query = searchInput.value.toLowerCase();
         filteredItems = items.filter(i => {
@@ -206,6 +245,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     searchInput.addEventListener('input', filterList);
+
+    // Clear All: Delete all tabs for the currently viewed device from Supabase
+    clearAllBtn.addEventListener('click', async () => {
+        const count = filteredItems.length;
+        if (count === 0) return;
+
+        const deviceLabel = activeDevice === 'pc' ? 'PC' : 'iPhone';
+        const confirmed = confirm(`This will permanently delete all ${count} ${deviceLabel} tabs from the database. This cannot be undone. Continue?`);
+        if (!confirmed) return;
+
+        // Fire the mass DELETE to Supabase filtered by device
+        const deviceFilter = activeDevice === 'pc' ? 'pc' : 'mobile';
+        await fetch(`${TABLE_URL}?device=eq.${deviceFilter}`, {
+            method: "DELETE",
+            headers: HEADERS
+        });
+
+        // Optimistic UI update: remove all items matching the active device
+        items = items.filter(i => {
+            if (activeDevice === 'pc') return i.device === 'mobile';
+            return i.device === 'pc' || !i.device;
+        });
+        filterList();
+    });
 
     // Initial fetch from Supabase
     listContainer.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding: 40px; font-size: 13px;">Fetching from Supabase Cloud...</div>';
@@ -227,7 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     await fetchTabs();
 
-    // Setup naive polling for simplicity instead of heavy WebSocket imports
+    // Naive polling for live sync
     setInterval(fetchTabs, 5000); 
 
     // Export Logic
