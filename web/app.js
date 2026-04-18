@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let filteredItems = [];
     let selectedIndex = 0;
     let VISIBLE_LIMIT = 50;
+    let pollCooldownUntil = 0;
 
     const render = () => {
         listContainer.innerHTML = '';
@@ -109,6 +110,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.stopPropagation();
                 const newState = !item.working;
                 
+                // Suppress polling for 6 seconds to prevent DOM rebuild jitter
+                pollCooldownUntil = Date.now() + 6000;
+
                 // Optimistic UI update
                 item.working = newState;
                 render();
@@ -136,6 +140,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.preventDefault();
                 e.stopPropagation();
                 
+                pollCooldownUntil = Date.now() + 6000;
+
                 // Optimistic UI update
                 items = items.filter(i => i.id !== item.id);
                 filterList();
@@ -273,7 +279,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initial fetch from Supabase
     listContainer.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding: 40px; font-size: 13px;">Fetching from Supabase Cloud...</div>';
     
-    const fetchTabs = async () => {
+    const fetchTabs = async (force) => {
+        // Skip polling if a user action recently happened (prevents DOM jitter)
+        if (!force && Date.now() < pollCooldownUntil) return;
+
         try {
             const res = await fetch(`${TABLE_URL}?order=created_at.desc`, { headers: HEADERS });
             if (res.ok) {
@@ -288,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
     
-    await fetchTabs();
+    await fetchTabs(true);
 
     // Naive polling for live sync
     setInterval(fetchTabs, 5000); 
