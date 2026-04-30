@@ -12,8 +12,8 @@
     "service_worker": "background.js"
   },
   "icons": {
-    "16": "icons/logo.jpg",
-    "48": "icons/logo.jpg",
-    "128": "icons/logo.jpg"
+    "16": "icons/meishodoto.png",
+    "48": "icons/meishodoto.png",
+    "128": "icons/meishodoto.png"
   }
 }
