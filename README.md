@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icons/meishodoto.png" width="200" alt="Linger Logo">
+  <img src="icons/dotologo.png" width="200" alt="Linger Logo">
 </p>
 
 <h1 align="center">Linger</h1>
