@@ -66,7 +66,7 @@ DiddyParsing/
 |-- config.json                # API Keys (Gitignored locally)
 |-- icons/
 |   |-- logo.jpg               # Project Logo
-|-- dashboard/                 
+|-- dashboard/
 |   |-- index.html             # UI layout for local extension (unused, pointing to web)
 |   |-- style.css              # Dark purple minimalist design system
 |   |-- script.js              # Logic for local popup
@@ -102,7 +102,9 @@ DiddyParsing/
 ### Steps
 
 #### 1. Database (Supabase)
+
 Create a free Supabase project and execute this SQL to build the architecture:
+
 ```sql
 CREATE TABLE linger_tabs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -119,31 +121,37 @@ ALTER TABLE linger_tabs ADD CONSTRAINT unique_url_device UNIQUE (url, device);
 ```
 
 #### 2. PC Extension (Edge/Chrome)
+
 1. Clone this repository.
 2. Create a `config.json` file in the root directory (ensure it stays gitignored):
+
 ```json
 {
   "SUPABASE_URL": "https://your-project.supabase.co",
   "SUPABASE_ANON_KEY": "your-anon-key-here"
 }
 ```
+
 3. Navigate to `edge://extensions` or `chrome://extensions`.
 4. Enable **Developer Mode**, click **Load Unpacked**, and select the `DiddyParsing` directory.
 
 #### 3. iPhone Shortcut
+
 Since there is no native app, use Apple Shortcuts to harvest and upload:
+
 1. Add the **Find Safari Tabs** action.
 2. Add a **Repeat with Each** action (Item in Safari Tabs).
 3. Inside the loop, add **Get Contents of URL**:
    - URL: `https://your-project.supabase.co/rest/v1/linger_tabs`
    - Method: `POST`
-   - Headers: 
+   - Headers:
      - `apikey`: your-anon-key
      - `Authorization`: Bearer your-anon-key
      - `Prefer`: `return=minimal, resolution=ignore-duplicates`
    - JSON Body: Map the repeat item's Name to `cleantitle` and URL to `url`. Set `device` to `mobile`.
 
 #### 4. Cloud Dashboard
+
 Deploy the repository to GitHub Pages. Navigate to `your-repo.github.io/web/index.html`. It will prompt you for your Supabase credentials once, securely storing them locally in your browser's `localStorage`.
 
 ---
