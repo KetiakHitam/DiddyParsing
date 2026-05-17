@@ -125,7 +125,7 @@ chrome.action.onClicked.addListener(async () => {
     }
   
     // Open the Live Cloud Dashboard
-    const targetUrl = "https://ketiakhitam.github.io/DiddyParsing/web/index.html";
+    const targetUrl = "https://ketiakhitam.github.io/Linger/web/index.html";
     const dashTabs = await chrome.tabs.query({ url: targetUrl });
     if (dashTabs.length > 0) {
         chrome.tabs.update(dashTabs[0].id, { active: true });
